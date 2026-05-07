@@ -241,14 +241,16 @@ async function collectPatternIgnored(workspacePath, patternSources) {
   const results = [];
   await walkWorkspace(workspacePath, async (fullPath, relativePath, isDirectory) => {
     const normalized = normalizeRelativePath(relativePath);
+    let matched = false;
+
     for (const matcher of matchers) {
       if (matcher.matches(normalized, isDirectory)) {
         results.push({ relativePath: normalized, isDirectory, source: matcher.source });
-        return !isDirectory;
+        matched = true;
       }
     }
 
-    return true;
+    return !(matched && isDirectory);
   });
 
   return results;
