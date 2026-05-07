@@ -1,6 +1,6 @@
 # Ignore Panel
 
-Ignore Panel is a VS Code extension that keeps ignored files and folders out of the normal Explorer and lists them in a dedicated **Ignored Files** pane inside the Explorer view.
+Ignore Panel is a VS Code extension that lists Git ignored files and configured Explorer excludes in a dedicated **Ignored Files** pane inside the Explorer view.
 
 ## Features
 
@@ -8,17 +8,20 @@ Ignore Panel is a VS Code extension that keeps ignored files and folders out of 
 - Supports additional ignore files such as `.ignore`, `.npmignore`, `.dockerignore`, `.eslintignore`, and `.prettierignore`.
 - Loads ignored directory contents only when a directory is expanded.
 - Can include existing VS Code `files.exclude` patterns in the pane.
-- Writes workspace-scoped `files.exclude` entries so ignored paths disappear from the normal Explorer.
-- Provides refresh, open, reveal, and toggle-hiding commands.
+- Leaves normal Explorer visibility to VS Code's built-in `files.exclude` and `explorer.excludeGitIgnore` settings.
+- Provides refresh, open, and toggle Git ignore hiding commands.
+
+The **Ignored Files** pane can show Git ignored files, enabled `files.exclude` matches, and configured ignore-file sources regardless of whether the normal Explorer currently hides them.
 
 ## Settings
 
-- `ignorePanel.hideIgnoredFiles`: hide discovered ignored paths in the normal Explorer.
 - `ignorePanel.includeGitIgnored`: include ignored paths reported by Git.
 - `ignorePanel.includeVSCodeExcludes`: include existing `files.exclude` patterns.
 - `ignorePanel.extraIgnoreFiles`: extra ignore files to parse.
-- `ignorePanel.extraExcludeGlobs`: extra workspace-relative glob patterns.
+- `ignorePanel.settingsTarget`: write `explorer.excludeGitIgnore` changes to `workspace` settings or `user` settings. Defaults to `workspace`.
 - `ignorePanel.refreshIntervalSeconds`: optional polling refresh interval.
+
+Use VS Code's `files.exclude` setting for Explorer glob excludes. Use VS Code's `explorer.excludeGitIgnore` setting, or the Ignore Panel eye button, to show or hide Git ignored files in the normal Explorer.
 
 ## Development
 

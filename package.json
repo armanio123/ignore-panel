@@ -1,7 +1,7 @@
 {
   "name": "ignore-panel",
   "displayName": "Ignore Panel",
-  "description": "Hides files and folders ignored by Git and configured ignore sources, then shows them in a dedicated Explorer pane.",
+  "description": "Shows Git ignored files and configured Explorer excludes in a dedicated Explorer pane.",
   "version": "1.0.0",
   "publisher": "armanio123",
   "license": "MIT",
@@ -63,11 +63,6 @@
     "configuration": {
       "title": "Ignore Panel",
       "properties": {
-        "ignorePanel.hideIgnoredFiles": {
-          "type": "boolean",
-          "default": true,
-          "description": "Hide discovered ignored files and folders from the normal Explorer by writing workspace-scoped files.exclude entries."
-        },
         "ignorePanel.includeGitIgnored": {
           "type": "boolean",
           "default": true,
@@ -92,13 +87,18 @@
           },
           "description": "Workspace-relative ignore files to parse as additional ignore sources. Basic glob lines are supported."
         },
-        "ignorePanel.extraExcludeGlobs": {
-          "type": "array",
-          "default": [],
-          "items": {
-            "type": "string"
-          },
-          "description": "Additional workspace-relative glob patterns to hide and show in the Ignored Files pane."
+        "ignorePanel.settingsTarget": {
+          "type": "string",
+          "default": "workspace",
+          "enum": [
+            "workspace",
+            "user"
+          ],
+          "enumDescriptions": [
+            "Write explorer.excludeGitIgnore changes to workspace settings.",
+            "Write explorer.excludeGitIgnore changes to user settings."
+          ],
+          "description": "Controls whether Ignore Panel writes explorer.excludeGitIgnore changes to workspace settings or user settings."
         },
         "ignorePanel.refreshIntervalSeconds": {
           "type": "number",
@@ -131,12 +131,12 @@
         },
         {
           "command": "ignorePanel.disableHiding",
-          "when": "view == ignorePanel.ignoredFiles && ignorePanel.hidingEnabled",
+          "when": "view == ignorePanel.ignoredFiles && config.explorer.excludeGitIgnore",
           "group": "navigation@2"
         },
         {
           "command": "ignorePanel.enableHiding",
-          "when": "view == ignorePanel.ignoredFiles && !ignorePanel.hidingEnabled",
+          "when": "view == ignorePanel.ignoredFiles && !config.explorer.excludeGitIgnore",
           "group": "navigation@2"
         }
       ],

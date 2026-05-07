@@ -6,10 +6,14 @@ const path = require('path');
 const vscode = require('vscode');
 
 const VIEW_ID = 'ignorePanel.ignoredFiles';
-const EXCLUDE_STATE_KEY = 'ignorePanel.excludeState';
+const LEGACY_EXCLUDE_STATE_KEY = 'ignorePanel.excludeState';
+const SETTINGS_TARGETS = {
+  user: vscode.ConfigurationTarget.Global,
+  workspace: vscode.ConfigurationTarget.Workspace
+};
 
 class IgnoredNode {
-  constructor({ label, fullPath, relativePath, workspaceFolder, isDirectory, sources, parent, hideTarget, lazyChildren }) {
+  constructor({ label, fullPath, relativePath, workspaceFolder, isDirectory, sources, parent, lazyChildren }) {
     this.label = label;
     this.fullPath = fullPath;
     this.relativePath = relativePath;
@@ -17,7 +21,6 @@ class IgnoredNode {
     this.isDirectory = isDirectory;
     this.sources = sources || [];
     this.parent = parent;
-    this.hideTarget = hideTarget || false;
     this.lazyChildren = lazyChildren || false;
     this.childrenLoaded = false;
     this.children = [];
@@ -94,13 +97,12 @@ class IgnoredFilesProvider {
     const roots = [];
 
     for (const folder of workspaceFolders) {
-      const nodes = await collectIgnoredItems(folder, this.context);
+      const nodes = await collectIgnoredItems(folder);
       roots.push(createWorkspaceNode(folder, nodes));
     }
 
     this.nodesByWorkspace = roots;
     this._onDidChangeTreeData.fire();
-    await applyExplorerHiding(roots, this.context);
   }
 
   configureRefreshTimer() {
@@ -127,14 +129,14 @@ class IgnoredFilesProvider {
   }
 }
 
-async function collectIgnoredItems(workspaceFolder, context) {
+async function collectIgnoredItems(workspaceFolder) {
   const config = vscode.workspace.getConfiguration('ignorePanel', workspaceFolder.uri);
   const collected = new Map();
 
   if (config.get('includeGitIgnored', true)) {
     const gitItems = await collectGitIgnored(workspaceFolder.uri.fsPath);
     for (const item of gitItems) {
-      upsertCollected(collected, item.relativePath, item.isDirectory, 'git', true);
+      upsertCollected(collected, item.relativePath, item.isDirectory, 'git');
     }
   }
 
@@ -147,15 +149,10 @@ async function collectIgnoredItems(workspaceFolder, context) {
     }
   }
 
-  for (const pattern of config.get('extraExcludeGlobs', [])) {
-    patternSources.push({ pattern, source: 'ignorePanel.extraExcludeGlobs' });
-  }
-
   if (config.get('includeVSCodeExcludes', true)) {
     const excludes = vscode.workspace.getConfiguration('files', workspaceFolder.uri).get('exclude', {});
-    const extensionOwnedKeys = new Set(Object.keys(getFolderExcludeState(context, workspaceFolder)));
     for (const [pattern, enabled] of Object.entries(excludes)) {
-      if (enabled === true && !extensionOwnedKeys.has(pattern)) {
+      if (enabled === true) {
         patternSources.push({ pattern, source: 'files.exclude' });
       }
     }
@@ -164,7 +161,7 @@ async function collectIgnoredItems(workspaceFolder, context) {
   if (patternSources.length > 0) {
     const patternItems = await collectPatternIgnored(workspaceFolder.uri.fsPath, patternSources);
     for (const item of patternItems) {
-      upsertCollected(collected, item.relativePath, item.isDirectory, item.source, true);
+      upsertCollected(collected, item.relativePath, item.isDirectory, item.source);
     }
   }
 
@@ -173,7 +170,7 @@ async function collectIgnoredItems(workspaceFolder, context) {
     .sort(comparePaths);
 }
 
-function upsertCollected(collected, relativePath, isDirectory, source, hideTarget) {
+function upsertCollected(collected, relativePath, isDirectory, source) {
   const normalized = normalizeRelativePath(relativePath);
   if (!normalized) {
     return;
@@ -182,7 +179,6 @@ function upsertCollected(collected, relativePath, isDirectory, source, hideTarge
   const existing = collected.get(normalized);
   if (existing) {
     existing.isDirectory = existing.isDirectory || isDirectory;
-    existing.hideTarget = existing.hideTarget || hideTarget;
     if (!existing.sources.includes(source)) {
       existing.sources.push(source);
     }
@@ -192,7 +188,6 @@ function upsertCollected(collected, relativePath, isDirectory, source, hideTarge
   collected.set(normalized, {
     relativePath: normalized,
     isDirectory,
-    hideTarget: hideTarget || false,
     sources: [source]
   });
 }
@@ -363,7 +358,6 @@ function createWorkspaceNode(workspaceFolder, ignoredItems) {
           workspaceFolder,
           isDirectory: !isLeaf || ignoredItem.isDirectory,
           sources: isLeaf ? ignoredItem.sources : [],
-          hideTarget: isLeaf ? ignoredItem.hideTarget : false,
           lazyChildren: isLeaf && ignoredItem.isDirectory,
           parent
         });
@@ -374,7 +368,6 @@ function createWorkspaceNode(workspaceFolder, ignoredItems) {
       if (isLeaf) {
         node.isDirectory = ignoredItem.isDirectory;
         node.sources = ignoredItem.sources;
-        node.hideTarget = ignoredItem.hideTarget;
         node.lazyChildren = ignoredItem.isDirectory;
       }
 
@@ -415,7 +408,6 @@ async function loadDirectoryChildren(node) {
       isDirectory: entry.isDirectory(),
       sources: node.sources,
       parent: node,
-      hideTarget: false,
       lazyChildren: entry.isDirectory()
     }));
   }
@@ -436,77 +428,101 @@ function sortNodes(node) {
   }
 }
 
-async function applyExplorerHiding(roots, context) {
-  const excludeState = getExcludeState(context);
-
-  for (const root of roots) {
-    const folder = root.workspaceFolder;
-    const folderKey = folder.uri.toString();
-    const config = vscode.workspace.getConfiguration('files', folder.uri);
-    const currentExclude = { ...config.get('exclude', {}) };
-    const nextExclude = { ...currentExclude };
-    const previousEntries = excludeState[folderKey] || {};
-
-    for (const [key, previousValue] of Object.entries(previousEntries)) {
-      if (previousValue === null) {
-        delete nextExclude[key];
-      } else {
-        nextExclude[key] = previousValue;
-      }
-    }
-
-    const nextEntries = {};
-    const shouldHide = vscode.workspace.getConfiguration('ignorePanel', folder.uri).get('hideIgnoredFiles', true);
-    if (shouldHide) {
-      for (const node of flattenIgnoredLeaves(root)) {
-        const key = normalizeRelativePath(node.relativePath);
-        if (key) {
-          nextEntries[key] = Object.prototype.hasOwnProperty.call(nextExclude, key) ? nextExclude[key] : null;
-          nextExclude[key] = true;
-        }
-      }
-    }
-
-    if (Object.keys(nextEntries).length > 0) {
-      excludeState[folderKey] = nextEntries;
+function restoreExcludeValues(excludes, entries) {
+  for (const [key, previousValue] of Object.entries(entries)) {
+    if (previousValue === null) {
+      delete excludes[key];
     } else {
-      delete excludeState[folderKey];
-    }
-
-    if (JSON.stringify(currentExclude) !== JSON.stringify(nextExclude)) {
-      await config.update('exclude', nextExclude, vscode.ConfigurationTarget.WorkspaceFolder);
+      excludes[key] = previousValue;
     }
   }
-
-  await context.workspaceState.update(EXCLUDE_STATE_KEY, excludeState);
 }
 
-function getExcludeState(context) {
-  return { ...context.workspaceState.get(EXCLUDE_STATE_KEY, {}) };
-}
+async function cleanupLegacyExplorerHiding(context) {
+  const excludeState = context.workspaceState.get(LEGACY_EXCLUDE_STATE_KEY, {});
+  if (Object.keys(excludeState).length === 0) {
+    return;
+  }
 
-function getFolderExcludeState(context, workspaceFolder) {
-  return getExcludeState(context)[workspaceFolder.uri.toString()] || {};
-}
+  const workspaceFolders = vscode.workspace.workspaceFolders || [];
+  if (workspaceFolders.length === 0) {
+    return;
+  }
 
-function flattenIgnoredLeaves(root) {
-  const leaves = [];
-  const stack = [...root.children];
-
-  while (stack.length > 0) {
-    const node = stack.pop();
-    if (!node) {
+  const remainingState = { ...excludeState };
+  for (const folder of workspaceFolders) {
+    const folderKey = folder.uri.toString();
+    const legacyState = remainingState[folderKey];
+    if (!legacyState) {
       continue;
     }
 
-    if (node.hideTarget) {
-      leaves.push(node);
+    const { entries, target } = normalizeLegacyExcludeState(legacyState);
+    if (Object.keys(entries).length > 0) {
+      await restoreExcludeEntries(folder, entries, target);
     }
-
-    stack.push(...node.children);
+    delete remainingState[folderKey];
   }
 
-  return leaves;
+  await context.workspaceState.update(
+    LEGACY_EXCLUDE_STATE_KEY,
+    Object.keys(remainingState).length > 0 ? remainingState : undefined
+  );
+}
+
+function normalizeLegacyExcludeState(state) {
+  if (state.entries) {
+    return {
+      entries: state.entries,
+      target: normalizeLegacySettingsTarget(state.target)
+    };
+  }
+
+  return {
+    entries: state,
+    target: vscode.ConfigurationTarget.WorkspaceFolder
+  };
+}
+
+function normalizeLegacySettingsTarget(target) {
+  if (
+    target === vscode.ConfigurationTarget.Global ||
+    target === vscode.ConfigurationTarget.Workspace ||
+    target === vscode.ConfigurationTarget.WorkspaceFolder
+  ) {
+    return target;
+  }
+
+  return vscode.ConfigurationTarget.WorkspaceFolder;
+}
+
+async function restoreExcludeEntries(workspaceFolder, entries, target) {
+  const config = vscode.workspace.getConfiguration('files', workspaceFolder.uri);
+  const currentExclude = { ...getExcludeForTarget(config, target) };
+  const nextExclude = { ...currentExclude };
+
+  restoreExcludeValues(nextExclude, entries);
+
+  if (JSON.stringify(currentExclude) !== JSON.stringify(nextExclude)) {
+    await config.update('exclude', nextExclude, target);
+  }
+}
+
+function getExcludeForTarget(config, target) {
+  const inspected = config.inspect('exclude');
+  if (target === vscode.ConfigurationTarget.Global) {
+    return inspected?.globalValue || {};
+  }
+
+  if (target === vscode.ConfigurationTarget.Workspace) {
+    return inspected?.workspaceValue || {};
+  }
+
+  if (target === vscode.ConfigurationTarget.WorkspaceFolder) {
+    return inspected?.workspaceFolderValue || {};
+  }
+
+  return config.get('exclude', {});
 }
 
 function normalizeRelativePath(relativePath) {
@@ -538,27 +554,30 @@ async function openItem(node) {
 }
 
 async function toggleHiding(provider) {
-  const config = vscode.workspace.getConfiguration('ignorePanel');
-  const current = config.get('hideIgnoredFiles', true);
+  const config = vscode.workspace.getConfiguration('explorer');
+  const current = config.get('excludeGitIgnore', false);
   await setHiding(provider, !current);
 }
 
 async function setHiding(provider, enabled) {
-  const config = vscode.workspace.getConfiguration('ignorePanel');
-  await config.update('hideIgnoredFiles', enabled, vscode.ConfigurationTarget.Workspace);
-  await updateHidingContext();
+  const config = vscode.workspace.getConfiguration('explorer');
+  await config.update('excludeGitIgnore', enabled, getSettingsTarget());
   await provider.refresh();
 }
 
-async function updateHidingContext() {
-  const enabled = vscode.workspace.getConfiguration('ignorePanel').get('hideIgnoredFiles', true);
-  await vscode.commands.executeCommand('setContext', 'ignorePanel.hidingEnabled', enabled);
+function getSettingsTarget() {
+  const configuredTarget = vscode.workspace.getConfiguration('ignorePanel').get('settingsTarget', 'workspace');
+  if (configuredTarget === 'user') {
+    return SETTINGS_TARGETS.user;
+  }
+
+  return SETTINGS_TARGETS.workspace;
 }
 
 async function activate(context) {
   const provider = new IgnoredFilesProvider(context);
   context.subscriptions.push(provider);
-  await updateHidingContext();
+  await cleanupLegacyExplorerHiding(context);
 
   const treeView = vscode.window.createTreeView(VIEW_ID, {
     treeDataProvider: provider,
@@ -573,9 +592,12 @@ async function activate(context) {
     vscode.commands.registerCommand('ignorePanel.enableHiding', () => setHiding(provider, true)),
     vscode.commands.registerCommand('ignorePanel.disableHiding', () => setHiding(provider, false)),
     vscode.workspace.onDidChangeConfiguration(event => {
-      if (event.affectsConfiguration('ignorePanel') || event.affectsConfiguration('files.exclude')) {
-        updateHidingContext();
+      if (event.affectsConfiguration('ignorePanel')) {
         provider.configureRefreshTimer();
+        provider.refresh();
+      }
+
+      if (event.affectsConfiguration('files.exclude')) {
         provider.refresh();
       }
     }),
