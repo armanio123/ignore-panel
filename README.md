@@ -4,7 +4,7 @@ Ignore Panel is a VS Code extension that lists Git ignored files and configured 
 
 ## Preview
 
-<video src="resources/preview.mp4" controls title="Ignore Panel extension preview"></video>
+[![Ignore Panel extension preview](resources/ignored-files.png)](resources/preview.mp4)
 
 ## Features
 
