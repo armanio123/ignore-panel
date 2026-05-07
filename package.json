@@ -2,7 +2,7 @@
   "name": "ignore-panel",
   "displayName": "Ignore Panel",
   "description": "Shows Git ignored files and configured Explorer excludes in a dedicated Explorer pane.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "armanio123",
   "license": "MIT",
   "author": "Armando Aguirre <armanio123@gmail.com>",
