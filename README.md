@@ -5,7 +5,7 @@ Ignore Panel is a VS Code extension that lists Git ignored files and configured 
 ## Features
 
 - Reads Git ignored paths with `git ls-files --others --ignored --exclude-standard --directory`.
-- Supports additional ignore files such as `.ignore`, `.npmignore`, `.dockerignore`, `.eslintignore`, and `.prettierignore`.
+- Supports additional ignore files such as `.ignore`, `.npmignore`, `.dockerignore`, `.eslintignore`, `.prettierignore`, and `.vscodeignore`.
 - Loads ignored directory contents only when a directory is expanded.
 - Can include existing VS Code `files.exclude` patterns in the pane.
 - Leaves normal Explorer visibility to VS Code's built-in `files.exclude` and `explorer.excludeGitIgnore` settings.

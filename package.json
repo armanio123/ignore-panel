@@ -80,7 +80,8 @@
             ".npmignore",
             ".dockerignore",
             ".eslintignore",
-            ".prettierignore"
+            ".prettierignore",
+            ".vscodeignore"
           ],
           "items": {
             "type": "string"

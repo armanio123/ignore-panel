@@ -119,7 +119,7 @@ class IgnoredFilesProvider {
 
   recreateWatchers() {
     this.fileWatcher?.dispose();
-    this.fileWatcher = vscode.workspace.createFileSystemWatcher('**/{.gitignore,.ignore,.npmignore,.dockerignore,.eslintignore,.prettierignore}');
+    this.fileWatcher = vscode.workspace.createFileSystemWatcher('**/{.gitignore,.ignore,.npmignore,.dockerignore,.eslintignore,.prettierignore,.vscodeignore}');
 
     const refresh = debounce(() => this.refresh(), 300);
     this.fileWatcher.onDidCreate(refresh);
