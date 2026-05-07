@@ -1,0 +1,147 @@
+{
+  "name": "ignore-panel",
+  "displayName": "Ignore Panel",
+  "description": "Hides files and folders ignored by Git and configured ignore sources, then shows them in a dedicated Explorer pane.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ignorePanel.refresh",
+        "title": "Ignore Panel: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "ignorePanel.openItem",
+        "title": "Ignore Panel: Open",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "ignorePanel.toggleHiding",
+        "title": "Ignore Panel: Toggle Hiding Ignored Files",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "ignorePanel.enableHiding",
+        "title": "Ignore Panel: Toggle Hiding Ignored Files",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "ignorePanel.disableHiding",
+        "title": "Ignore Panel: Toggle Hiding Ignored Files",
+        "icon": "$(eye)"
+      }
+    ],
+    "configuration": {
+      "title": "Ignore Panel",
+      "properties": {
+        "ignorePanel.hideIgnoredFiles": {
+          "type": "boolean",
+          "default": true,
+          "description": "Hide discovered ignored files and folders from the normal Explorer by writing workspace-scoped files.exclude entries."
+        },
+        "ignorePanel.includeGitIgnored": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include files and folders reported by git ls-files --ignored --exclude-standard."
+        },
+        "ignorePanel.includeVSCodeExcludes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include existing files.exclude patterns in the Ignored Files pane."
+        },
+        "ignorePanel.extraIgnoreFiles": {
+          "type": "array",
+          "default": [
+            ".ignore",
+            ".npmignore",
+            ".dockerignore",
+            ".eslintignore",
+            ".prettierignore"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Workspace-relative ignore files to parse as additional ignore sources. Basic glob lines are supported."
+        },
+        "ignorePanel.extraExcludeGlobs": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional workspace-relative glob patterns to hide and show in the Ignored Files pane."
+        },
+        "ignorePanel.refreshIntervalSeconds": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Optional automatic refresh interval. Set to 0 to disable."
+        }
+      }
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "ignorePanel.openItem",
+          "when": "false"
+        },
+        {
+          "command": "ignorePanel.enableHiding",
+          "when": "false"
+        },
+        {
+          "command": "ignorePanel.disableHiding",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "ignorePanel.refresh",
+          "when": "view == ignorePanel.ignoredFiles",
+          "group": "navigation@1"
+        },
+        {
+          "command": "ignorePanel.disableHiding",
+          "when": "view == ignorePanel.ignoredFiles && ignorePanel.hidingEnabled",
+          "group": "navigation@2"
+        },
+        {
+          "command": "ignorePanel.enableHiding",
+          "when": "view == ignorePanel.ignoredFiles && !ignorePanel.hidingEnabled",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "ignorePanel.openItem",
+          "when": "view == ignorePanel.ignoredFiles && viewItem == ignoredFile",
+          "group": "inline"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "ignorePanel.ignoredFiles",
+          "name": "Ignored Files",
+          "icon": "resources/ignored-files.svg"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "lint": "node --check src/extension.js"
+  },
+  "devDependencies": {}
+}
