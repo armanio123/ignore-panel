@@ -2,13 +2,31 @@
   "name": "ignore-panel",
   "displayName": "Ignore Panel",
   "description": "Hides files and folders ignored by Git and configured ignore sources, then shows them in a dedicated Explorer pane.",
-  "version": "0.0.1",
-  "publisher": "local",
+  "version": "1.0.0",
+  "publisher": "armanio123",
+  "license": "MIT",
+  "author": "Armando Aguirre <armanio123@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/armanio123/ignore-panel.git"
+  },
+  "bugs": {
+    "url": "https://github.com/armanio123/ignore-panel/issues"
+  },
+  "homepage": "https://github.com/armanio123/ignore-panel#readme",
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": [
     "Other"
+  ],
+  "icon": "resources/ignored-files.png",
+  "keywords": [
+    "gitignore",
+    "ignore",
+    "explorer",
+    "files.exclude",
+    "git"
   ],
   "activationEvents": [
     "onStartupFinished"
