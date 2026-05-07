@@ -2,4 +2,5 @@
 .vscode-test/
 node_modules/
 *.vsix
-resources/preview.mp4
+resources/preview.gif
+
